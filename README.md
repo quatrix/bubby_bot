@@ -1,6 +1,6 @@
 # Bubby bot
 
-Telegram bot that keep track of headache. It asks you several times a day to rate your headache from 0 to 10 and sends these stats to statsd.
+Telegram bot that keep track of headaches. It asks you several times a day to rate your headache from 0 to 10 and sends these stats to statsd.
 
 # Installation
 
