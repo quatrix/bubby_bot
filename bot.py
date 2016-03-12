@@ -3,19 +3,21 @@ import statsd
 import time
 import logging
 import sys
+from datetime import datetime, timedelta
+
 
 from peewee import *
 
-logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
+logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 
 db = SqliteDatabase('users.db')
 statsd_client = statsd.StatsClient('localhost', 8125)
 
 class User(Model):
     id = PrimaryKeyField()
-    first_name = CharField()
-    last_name = CharField()
-    next_msg_time = IntegerField(null=True)
+    first_name = CharField(default='')
+    last_name = CharField(default='')
+    next_msg_time = DateTimeField(null=True)
 
     class Meta:
         database = db 
@@ -33,14 +35,19 @@ class BubbyBot(object):
     def get_hour_now(self):
         return time.localtime().tm_hour
 
-    def get_next_message_hour(self):
+    def get_next_message_time(self):
         hour_now = self.get_hour_now()
+	d = datetime.now()
+	d = d.replace(minute=0)
 
         for h in self.message_hours:
             if h > hour_now:
-                return h
+                d = d.replace(hour=h)
+		break
         else:
-            return self.message_hours[0]
+            d = d.replace(hour=self.message_hours[0]) + timedelta(days=1)
+
+	return d
 
     def subscribe(self):
         self.bot = Bot(self.token)
@@ -50,16 +57,16 @@ class BubbyBot(object):
             for user in User.select():
                 self.handle_user(user)
 
-            time.sleep(1)
+            time.sleep(60)
 
     def set_next_msg_time(self, user):
-        user.next_msg_time = self.get_next_message_hour()
+        user.next_msg_time = self.get_next_message_time()
         user.save()
 
     def handle_user(self, user):
         logging.info(user.next_msg_time)
 
-        if user.next_msg_time is None or user.next_msg_time <= self.get_hour_now():
+        if user.next_msg_time is None or user.next_msg_time <= datetime.now():
             self.ask_if_head_hurts(user)
             self.set_next_msg_time(user)
 
