@@ -3,33 +3,21 @@ import statsd
 import time
 import logging
 import sys
+from db_utils import get_all_users, add_to_database, remove_from_database
 from datetime import datetime, timedelta
 
 
-from peewee import *
 
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 
-db = SqliteDatabase('users.db')
-statsd_client = statsd.StatsClient('localhost', 8125)
-
-class User(Model):
-    id = PrimaryKeyField()
-    first_name = CharField(default='')
-    last_name = CharField(default='')
-    next_msg_time = DateTimeField(null=True)
-
-    class Meta:
-        database = db 
-
-db.connect()
-db.create_tables([User], safe=True)
+statsd_client = statsd.StatsClient('localhost', 8126)
 
 
 class BubbyBot(object):
     def __init__(self, token):
         self.token = token
         self.valid_answers = [str(x) for x in xrange(0, 11)]
+        self.question = 'How much does it hurt from 1 to 10?'
         self.message_hours = [9, 12, 17, 20, 23]
 
     def get_hour_now(self):
@@ -53,10 +41,10 @@ class BubbyBot(object):
         self.bot.notifyOnMessage(self.handle_message)
 
         while 1:
-            for user in User.select():
+            for user in get_all_users():
                 self.handle_user(user)
 
-            time.sleep(60)
+            time.sleep(1)
 
     def set_next_msg_time(self, user):
         user.next_msg_time = self.get_next_message_time()
@@ -69,16 +57,6 @@ class BubbyBot(object):
             self.ask_if_head_hurts(user)
             self.set_next_msg_time(user)
 
-    def add_to_database(self, user):
-        try:
-            User.create(**user)
-        except IntegrityError:
-            User(**user).save()
-
-    def remove_from_database(self, user):
-        logging.info('removing %s', user)
-        User.delete().where(User.id == user['id']).execute()
-
     def greet(self, user):
         self.bot.sendMessage(user['id'], 'Hey bubby! I am Bubby Bot! I will ask you a couple times a day if your head hurts so that we have statistics and graphs, if you wish me to stop just write /stop')
 
@@ -86,11 +64,11 @@ class BubbyBot(object):
         self.bot.sendMessage(user['id'], 'I will not bother you again :( unless you send me /start')
 
     def register_user(self, user):
-        self.add_to_database(user)
+        add_to_database(user)
         self.greet(user)
 
     def unregister_user(self, user):
-        self.remove_from_database(user)
+        remove_from_database(user)
         self.goodbye(user)
 
     def ask_if_head_hurts(self, user):
@@ -99,11 +77,7 @@ class BubbyBot(object):
             'force_reply': True
         }
 
-        self.bot.sendMessage(
-            user.id,
-            'How much does it hurt from 1 to 10?',
-            reply_markup=show_keyboard
-        )
+        self.bot.sendMessage(user.id, self.question, reply_markup=show_keyboard)
 
     def register_answer(self, user, answer):
         logging.info('got answer %d', answer)
