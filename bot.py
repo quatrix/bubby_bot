@@ -37,17 +37,16 @@ class BubbyBot(object):
 
     def get_next_message_time(self):
         hour_now = self.get_hour_now()
-	d = datetime.now()
-	d = d.replace(minute=0)
+        d = datetime.now().replace(minute=0)
 
         for h in self.message_hours:
             if h > hour_now:
                 d = d.replace(hour=h)
-		break
+                break
         else:
             d = d.replace(hour=self.message_hours[0]) + timedelta(days=1)
 
-	return d
+        return d
 
     def subscribe(self):
         self.bot = Bot(self.token)
@@ -121,12 +120,14 @@ class BubbyBot(object):
 
         self.commit_answer_to_database(user, answer)
 
-    def commit_answer_to_database(self, user, answer):
-        key = 'bubby_bot.{}_{}'.format(
-            user['first_name'],
-            user['last_name'],
-        )
+    def get_stastd_key_for_user(self, user):
+        attrs = 'first_name', 'last_name', 'id'
+        keys = [str(user.get(attr)) for attr in attrs if user.get(attr) is not None]
+        return 'bubby_bot.{}'.format('_'.join(keys))
 
+    def commit_answer_to_database(self, user, answer):
+        key = self.get_stastd_key_for_user(user)
+        logging.info('statsd %s - %d', key, answer)
         statsd_client.gauge(key, answer)
 
     def invalid_answer(self, user):
