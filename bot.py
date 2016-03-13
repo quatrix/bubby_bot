@@ -7,10 +7,14 @@ from db_utils import get_all_users, add_to_database, remove_from_database
 from datetime import datetime, timedelta
 
 
-
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
-
 statsd_client = statsd.StatsClient('localhost', 8126)
+
+
+class STRINGS(object):
+    greeting = 'Hey bubby! I am Bubby Bot! I will ask you a couple times a day if your head hurts so that we have statistics and graphs, if you wish me to stop just write /stop'
+    invalid_answer = 'I don\'t know what you mean :( <3'
+    goodbye = 'I will not bother you again :( unless you send me /start'
 
 
 class BubbyBot(object):
@@ -20,15 +24,11 @@ class BubbyBot(object):
         self.question = 'How much does it hurt from 1 to 10?'
         self.message_hours = [9, 12, 17, 20, 23]
 
-    def get_hour_now(self):
-        return time.localtime().tm_hour
-
     def get_next_message_time(self):
-        hour_now = self.get_hour_now()
         d = datetime.now().replace(minute=0)
 
         for h in self.message_hours:
-            if h > hour_now:
+            if h > d.hour:
                 d = d.replace(hour=h)
                 break
         else:
@@ -58,10 +58,10 @@ class BubbyBot(object):
             self.set_next_msg_time(user)
 
     def greet(self, user):
-        self.bot.sendMessage(user['id'], 'Hey bubby! I am Bubby Bot! I will ask you a couple times a day if your head hurts so that we have statistics and graphs, if you wish me to stop just write /stop')
+        self.bot.sendMessage(user['id'], STRINGS.greeting)
 
     def goodbye(self, user):
-        self.bot.sendMessage(user['id'], 'I will not bother you again :( unless you send me /start')
+        self.bot.sendMessage(user['id'], STRINGS.goodbye)
 
     def register_user(self, user):
         add_to_database(user)
@@ -105,7 +105,7 @@ class BubbyBot(object):
         statsd_client.gauge(key, answer)
 
     def invalid_answer(self, user):
-        self.bot.sendMessage(user['id'], 'I don\'t know what you mean :( <3')
+        self.bot.sendMessage(user['id'], STRINGS.invalid_answer)
 
     def handle_message(self, msg):
         if msg['text'] == '/start':
