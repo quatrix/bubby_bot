@@ -3,16 +3,22 @@ import statsd
 import time
 import logging
 import sys
+import requests
+import tempfile
+from StringIO import StringIO
 from db_utils import get_all_users, add_to_database, remove_from_database
 from datetime import datetime, timedelta
 
 
-logging.basicConfig(stream=sys.stdout, level=logging.INFO)
-statsd_client = statsd.StatsClient('localhost', 8126)
+logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
+statsd_client = statsd.StatsClient('localhost', 8125)
+
+graphite_url = 'http://edisdead.com:8080/render?target=stats.gauges.bubby_bot.{}&height=200&width=400&bgcolor=black&fgcolor=white&hideLegend=1&from={}'
+
 
 
 class STRINGS(object):
-    greeting = 'Hey bubby! I am Bubby Bot! I will ask you a couple times a day if your head hurts so that we have statistics and graphs, if you wish me to stop just write /stop'
+    greeting = 'Hey bubby! I am Bubby Bot! I will ask you a couple times a day if your head hurts so that we have statistics and graphs, if you wish me to stop just write /stop if you wish to see stats for last N days write /statsN (where N is number of days)'
     invalid_answer = 'I don\'t know what you mean :( <3'
     goodbye = 'I will not bother you again :( unless you send me /start'
 
@@ -95,9 +101,7 @@ class BubbyBot(object):
         self.commit_answer_to_database(user, answer)
 
     def get_stastd_key_for_user(self, user):
-        attrs = 'first_name', 'last_name', 'id'
-        keys = [str(user.get(attr)) for attr in attrs if user.get(attr) is not None]
-        return 'bubby_bot.{}'.format('_'.join(keys))
+        return 'bubby_bot.{}'.format(user['id'])
 
     def commit_answer_to_database(self, user, answer):
         key = self.get_stastd_key_for_user(user)
@@ -107,11 +111,42 @@ class BubbyBot(object):
     def invalid_answer(self, user):
         self.bot.sendMessage(user['id'], STRINGS.invalid_answer)
 
+    def send_stats(self, user, text):
+        days = text[6:]
+
+        if not days:
+            days = 1
+
+        try:
+            days = int(days)
+        except ValueError:
+            days = 1
+
+        key = self.get_stastd_key_for_user(user)
+        r = requests.get(graphite_url.format(user['id'], '-{}days'.format(days)))
+
+        with tempfile.NamedTemporaryFile(suffix='.png') as f:
+            f.write(r.content)
+            f.flush()
+            f.seek(0)
+            
+            if days == 1:
+                last_msg_part = '24 hours'
+            else:
+                last_msg_part = '{} days'.format(days)
+
+            self.bot.sendMessage(user['id'], 'here you go, last ' + last_msg_part)
+            r = self.bot.sendPhoto(user['id'], f)
+
+        print(r)
+
     def handle_message(self, msg):
         if msg['text'] == '/start':
             self.register_user(msg['from'])
         elif msg['text'] == '/stop':
             self.unregister_user(msg['from'])
+        elif msg['text'].startswith('/stats'):
+            self.send_stats(msg['from'], msg['text'])
         elif msg['text'] in self.valid_answers:
             self.register_answer(msg['from'], int(msg['text']))
         else:

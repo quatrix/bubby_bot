@@ -23,7 +23,5 @@ python bot.py <telegram token>
 
 * /start - subscribe to bot
 * /stop - unsubsribe from bot
+* /statsN- returns a png with stats for the last N days
 * 0-10 - send headache level to the bot
-
-# TODO
-* /stats - returns a weekly/monthly graph of headaches level
