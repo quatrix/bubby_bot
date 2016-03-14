@@ -13,8 +13,7 @@ from datetime import datetime, timedelta
 logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
 statsd_client = statsd.StatsClient('localhost', 8125)
 
-graphite_url = 'http://edisdead.com:8080/render?target=stats.gauges.bubby_bot.{}&height=200&width=400&bgcolor=black&fgcolor=white&hideLegend=1&from={}'
-
+graphite_url = 'http://edisdead.com:8080/render?target=stats.gauges.bubby_bot.{}&height=200&width=400&bgcolor=f1f1f2&fgcolor=42606f&hideLegend=1&hideGrid=0&&colorList=e87787&&majorGridLineColor=42606f&minorGridLineColor=f1f1f2&lineWidth=2&fontName=Roboto&from={}'
 
 
 class STRINGS(object):
