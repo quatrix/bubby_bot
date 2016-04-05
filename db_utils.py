@@ -26,6 +26,6 @@ def add_to_database(user):
     except IntegrityError:
         User(**user).save()
 
-def remove_from_database(user):
-    logging.info('removing %s', user)
-    User.delete().where(User.id == user['id']).execute()
+def remove_from_database(user_id):
+    logging.info('removing %s', user_id)
+    User.delete().where(User.id == user_id).execute()

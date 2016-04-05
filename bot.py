@@ -1,4 +1,4 @@
-from telepot import Bot
+from telepot import Bot, TelegramError
 import statsd
 import time
 import logging
@@ -65,16 +65,16 @@ class BubbyBot(object):
     def greet(self, user):
         self.bot.sendMessage(user['id'], STRINGS.greeting)
 
-    def goodbye(self, user):
-        self.bot.sendMessage(user['id'], STRINGS.goodbye)
+    def goodbye(self, user_id):
+        self.bot.sendMessage(user_id, STRINGS.goodbye)
 
     def register_user(self, user):
         add_to_database(user)
         self.greet(user)
 
-    def unregister_user(self, user):
-        remove_from_database(user)
-        self.goodbye(user)
+    def unregister_user(self, user_id):
+        remove_from_database(user_id)
+        self.goodbye(user_id)
 
     def ask_if_head_hurts(self, user):
         show_keyboard = {
@@ -82,7 +82,13 @@ class BubbyBot(object):
             'force_reply': True
         }
 
-        self.bot.sendMessage(user.id, self.question, reply_markup=show_keyboard)
+        try:
+            self.bot.sendMessage(user.id, self.question, reply_markup=show_keyboard)
+        except TelegramError as e:
+            logging.exception('ask if head hurts')
+
+            if e.error_code == 403:
+                remove_from_database(user.id)
 
     def register_answer(self, user, answer):
         logging.info('got answer %d', answer)
@@ -143,7 +149,7 @@ class BubbyBot(object):
         if msg['text'] == '/start':
             self.register_user(msg['from'])
         elif msg['text'] == '/stop':
-            self.unregister_user(msg['from'])
+            self.unregister_user(msg['from']['id'])
         elif msg['text'].startswith('/stats'):
             self.send_stats(msg['from'], msg['text'])
         elif msg['text'] in self.valid_answers:
